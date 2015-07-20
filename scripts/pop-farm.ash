@@ -10,6 +10,9 @@ script "Pop-Farm";
 notify Zen00;
 import <EatDrink.ash>;
 
+//Set this varibale if you want auto-mood swinging
+string ICING_FARMING_MOOD = setvar("pop_icing_farming_mood", "");
+
 //Don't modify below here
 int [string, effect] buffbot_data;
 file_to_map("HAR_Buffbot_Info.txt", buffbot_data);
@@ -71,7 +74,7 @@ int active_at_songs()
 			num_at_songs += 1;
 		}
 	
-	print(3, "You have "+ num_at_songs +" AT songs active");
+	print("You have "+ num_at_songs +" AT songs active", "blue");
 	return num_at_songs;
 	}
 	
@@ -83,7 +86,7 @@ int max_at_songs()
 	boolean extra_song = boolean_modifier("additional song");
 	int max_songs = 3 + to_int(four_songs) + to_int(extra_song);
 	
-	print(3, "You can currently hold "+ max_songs +" AT songs in your head");
+	print("You can currently hold "+ max_songs +" AT songs in your head", "blue");
 	return max_songs;
 	}
 	
@@ -224,6 +227,9 @@ void request_buff(effect the_effect, int turns_needed)
 
 void fill_organs()
 	{
+	if(my_inebriety() > inebriety_limit())
+		abort("You are too drunk to continue.");
+		
 	if(my_fullness() < fullness_limit() || my_inebriety() < inebriety_limit() || my_spleen_use() < spleen_limit())
 		{
 		// Get ode if necessary
@@ -367,9 +373,12 @@ void doStuff()
 {
 	fill_organs();
 	equipFarmingGear();
+	if(ICING_FARMING_MOOD != "")
+		cli_execute("mood " + ICING_FARMING_MOOD);
+	cli_execute("friars food");
+	
 	while(my_adventures() > 0)
 	{
-		cli_execute("refresh inventory");
 		if(item_amount($item[strawberry]) < 2)
 		{
 			buy(10, $item[strawberry]);
@@ -382,8 +391,10 @@ void doStuff()
 		{
 			set_property("choiceAdventure1061", 5);
 		}
+		
 		adv1($location[Madness Bakery], -1, "");
 	}
+	
 	overdrink();
 	equip_rollover_gear();
 }
