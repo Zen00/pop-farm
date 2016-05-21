@@ -2,23 +2,55 @@
 					Pop-Farm
 	
 				Written by Zen00
-	(with much copying from Banana Lord's Harvest)
+	(Thank you Banana Lord's Harvest for the eat/drink handlers)
 
 \***********************************************/
 
+
 script "Pop-Farm";
-notify Zen00;
 import <EatDrink.ash>;
 
-//Set this varibale if you want auto-mood swinging
-string ICING_FARMING_MOOD = setvar("pop_icing_farming_mood", "");
 
-//Don't modify below here
+/***********************************************\
+
+					OPTIONS
+
+\***********************************************/
+
+
+//Remove the comment lines if you want to let me know you're using this script, so I know people are interested and keep writing
+//notify Zen00;
+
+//Set this variable if you want a specific mood to be used (for buffs and such)
+string pop_farmingMood = "";
+
+//Set this variable if you want a custom combat script to be used, otherwise this will default to the attack with weapon option
+string pop_farmingCCS = "";
+
+//Set this variable if you want to specify an outfit to be worn each time, otherwise the outfit will be auto-determined
+string pop_farmingOutfit = "";
+
+//Set this variable if you want a custom rollover gear set, otherwise the outfit will be auto-determined
+string pop_rolloverOutfit = "";
+
+//Set the value of your adventures so a proper diet can be calculated, generally around 500 meat per adventure if you're selling tarts at 2k meat, if you don't want this to set then change the value to 0
+int valueOfAdventure = 500;
+
+
+/***********************************************\
+
+					SCRIPT
+					
+			Do not edit paste this point
+		unless you know what you're doing
+		(all warranties void if edited)
+
+\***********************************************/
+
+
 int [string, effect] buffbot_data;
 file_to_map("HAR_Buffbot_Info.txt", buffbot_data);
 SIM_CONSUME = false;
-string ROLLOVER_OUTFIT = setvar("pop_rollover_outfit", "");
-string ICING_FARMING_OUTFIT = setvar("pop_icing_farming_outfit", "");
 
 effect cheapest_at_buff()
 	{
@@ -227,9 +259,12 @@ void request_buff(effect the_effect, int turns_needed)
 
 void fill_organs()
 	{
+	
+	if(valueOfAdventure != 0)
+		set_property("valueOfAdventure", valueOfAdventure);
 	if(my_inebriety() > inebriety_limit())
 		abort("You are too drunk to continue.");
-		
+	
 	if(my_fullness() < fullness_limit() || my_inebriety() < inebriety_limit() || my_spleen_use() < spleen_limit())
 		{
 		// Get ode if necessary
@@ -256,7 +291,7 @@ void fill_organs()
 		print("Your organs are already full", "blue");
 	}
 	
-void overdrink() {
+void overDrink() {
 	/*	Drinks a nightcap using your consumption script. Will make space for ode by shrugging an AT
 		buff if necessary, and will attempt to get a shot of ode from a buffbot if you cannot cast it
 		yourself (but will NOT cast ode if you can cast it yourself - that's up to the consumption
@@ -279,127 +314,123 @@ void overdrink() {
 		print("Failed to overdrink!", "red");
 	}
 	
-boolean have_foldable(string foldable) {
-	/* Returns true if you have any of the forms of the foldable related to <foldable>.
-	"Putty" for spooky putty, "cheese" for stinky cheese, "origami" for naughty origami, 
-	"doh" for Rain-Doh. */
-
-	int count;
-	switch (foldable) {
-		case "putty":
-			foreach putty_form in get_related($item[Spooky Putty sheet], "fold")
-				if(available_amount(putty_form) > 0)
-					count += available_amount(putty_form);
-			break;
-		case "cheese":
-			foreach cheese_form in get_related($item[stinky cheese eye], "fold")
-				if(available_amount(cheese_form) > 0)
-					count += available_amount(cheese_form);
-			break;
-		case "origami":
-			foreach origami_form in get_related($item[origami pasties], "fold")
-				if(available_amount(origami_form) > 0)
-					count += available_amount(origami_form);
-			break;
-		case "doh":
-			int doh_count = available_amount($item[Rain-Doh black box]) + available_amount($item[Rain-Doh box full of monster]);
-			if(doh_count > 0)
-				count += doh_count;
-			break;
-		}
-
-	return count > 0;
-	}
-	
-boolean get_foldable(item goal) {
-	/*	Attempts to get a given form of a foldable by first retrieving it from your closet 
-	or display case and then folding it into the desired form */
-	
-	boolean look_get(item it, boolean DC) { 
-		if(DC)
-			return(display_amount(it) > 0 && take_display(1, it)); 
-		
-		return(available_amount(it) > 0 && retrieve_item(1, it)); 
-		} 
-	
-	if(item_amount(goal) == 0 && !have_equipped(goal)) {
-		foreach DC in $booleans[false, true] { 
-			if(look_get(goal, DC))
-				return true;
-				
-			foreach form in get_related(goal, "fold") { 
-				if(look_get(form, DC)) { 
-					cli_execute("fold " + goal); 
-					if(item_amount(goal) > 0)
-						return true; 
-					} 
-				} 
-			}
-		}
-	
-	return item_amount(goal) > 0; 
-	}
-	
-void equip_rollover_gear()
-	{
+void equipRolloverGear()
+{
 	/*	Equips the most optimal rollover gear you have in your inventory and saves this as your 
 		specified rollover outfit */
 	
-	if(have_foldable("cheese"))
-		get_foldable($item[stinky cheese diaper]);
-	
-	if(outfit(ROLLOVER_OUTFIT))
-		outfit(ROLLOVER_OUTFIT);
-	
-	maximize("adv, switch Disembodied Hand", false);
-	    
-    cli_execute("outfit save "+ ROLLOVER_OUTFIT);
+	if(pop_rolloverOutfit != "")
+		outfit(pop_rolloverOutfit);
+	else
+	{
+		if(have_outfit("pop_rolloverOutfitDefault"))
+			outfit("pop_rolloverOutfitDefault");
+		else
+		{
+			maximize("adv", 0, 0, false);
+			cli_execute("outfit save pop_RolloverOutfitDefault");
+		}
 	}
+}
 	
 void equipFarmingGear()
-	{
+{
 	/*	Equips the most optimal food drop gear you have in your inventory and saves this as your 
 		specified farming outfit */
 	
-	if(outfit(ICING_FARMING_OUTFIT))
-		outfit(ICING_FARMING_OUTFIT);
-	
-	maximize("food drop, item drop", false);
-	    
-    cli_execute("outfit save "+ ICING_FARMING_OUTFIT);
-	}
-
-void doStuff()
-{
-	fill_organs();
-	equipFarmingGear();
-	if(ICING_FARMING_MOOD != "")
-		cli_execute("mood " + ICING_FARMING_MOOD);
-	cli_execute("friars food");
-	
-	while(my_adventures() > 0)
+	if(pop_farmingOutfit != "")
+		outfit(pop_farmingOutfit);
+	else
 	{
-		if(item_amount($item[strawberry]) < 2)
+		if(have_outfit("pop_farmingOutfitDefault"))
+			outfit("pop_farmingOutfitDefault");
+		else
 		{
-			buy(10, $item[strawberry]);
+			maximize("food drop, item drop", 0, 0, false);
+			cli_execute("outfit save pop_farmingOutfitDefault");
 		}
-		if(item_amount($item[Glob of enchanted icing]) > 0)
-		{
-			set_property("choiceAdventure1061", 3);
-			set_property("choiceAdventure1084", 1);
-		} else
-		{
-			set_property("choiceAdventure1061", 5);
-		}
-		
-		adv1($location[Madness Bakery], -1, "");
 	}
-	
-	overdrink();
-	equip_rollover_gear();
 }
 
 void main()
 {
-	doStuff();
+//Eat/drink for adventures
+	fill_organs();
+	
+//Equips the best possible farming gear for this location
+	equipFarmingGear();
+
+//Swaps your mood/ccs
+	if(pop_farmingMood != "")
+		cli_execute("mood " + pop_farmingMood);
+	if(pop_farmingCCS != "")
+		cli_execute("ccs " + pop_farmingCCS);
+
+//Obtains relevant daily buffs if possible
+	cli_execute("friars food");
+
+//Checks to see if you've already done the associated quest or not, completes it if you haven't, then farms
+	if (get_property("questM25Armorer").to_string() != "finished")
+	{
+		if (get_property("questM25Armorer").to_string() == "unstarted")
+		{
+			visit_url("shop.php?whichshop=armory&action=talk");
+			visit_url("choice.php?pwd&whichchoice=1065&option=1");
+			visit_url("choice.php?pwd&whichchoice=1065&option=6");
+		}
+		if ((get_property("questM25Armorer").to_string() == "started") || (get_property("questM25Armorer").to_string() == "step1") || (get_property("questM25Armorer").to_string() == "step2"))
+		{
+			set_property("choiceAdventure1061", 1);
+			while ((my_adventures() > 0) && ((get_property("questM25Armorer").to_string() == "started") || (get_property("questM25Armorer").to_string() == "step1") || (get_property("questM25Armorer").to_string() == "step2")))
+			{
+				adv1($location[Madness Bakery], -1, "");
+			}
+		}
+		if (get_property("questM25Armorer").to_string() == "step3")
+		{
+			while ((my_adventures() > 0) && (get_property("questM25Armorer").to_string() == "step3"))
+			{
+				adv1($location[Madness Bakery], -1, "");
+				if(contains_text(get_property("lastEncounter"), "The \"Rescue\""))
+				{
+					visit_url("choice.php?pwd&whichchoice=1082&option=1");
+				}
+				if(contains_text(get_property("lastEncounter"), "Cogito Ergot Sum"))
+				{
+					visit_url("choice.php?pwd&whichchoice=1083&option=1");
+				}
+			}
+		}
+		if (get_property("questM25Armorer").to_string() == "step4")
+		{
+			visit_url("shop.php?whichshop=armory");
+			visit_url("choice.php?pwd&whichchoice=1065&option=2");
+		}
+	}
+	else
+	{
+		set_property("choiceAdventure1084", 1);
+
+		while(my_adventures() > 0)
+		{
+			if(item_amount($item[strawberry]) < 2)
+			{
+				buy(100, $item[strawberry]);
+			}
+			if(item_amount($item[Glob of enchanted icing]) > 0)
+			{
+				set_property("choiceAdventure1061", 3);
+			}
+			else
+			{
+				set_property("choiceAdventure1061", 5);
+			}
+
+			adv1($location[Madness Bakery], -1, "");
+		}
+	}
+
+//Finish off the day with rollover and overdrink
+	overDrink();
+	equipRolloverGear();
 }
